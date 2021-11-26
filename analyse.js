@@ -35,7 +35,7 @@ inquirer.prompt([
 
                 async.each([
                     require('./src/parser/controller'),
-                    // require('./src/parser/pipeline'),
+                    require('./src/parser/pipeline'),
                     // require('./src/parser/script'),
                 ], function (fnc, callback) {
                     fnc(cartridgeBase, cartridgeName, callback);

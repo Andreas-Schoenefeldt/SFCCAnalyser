@@ -4,8 +4,8 @@
  *  executesFrom: Map<string, number>,
  *  calledFrom: Map<string, number>,
  *  callsToExternal: Map<string, number>,
- *  branches: Map<string, number>,
- *  cartridges: Map<string, string>
+ *  branches: [],
+ *  cartridges: []
  * }>|{}}
  */
 const pipes = {
@@ -21,12 +21,8 @@ const pipes = {
         callsToExternal: {
             'pipeName-branch': count
         },
-        branches: {
-            branchName: callCount
-        },
-        cartridges: {
-            'cartridgeId': cartridgeName
-        }
+        branches: [],
+        cartridges: []
      }
 
      */
@@ -42,8 +38,8 @@ module.exports.assurePipeStructure = function (pipeId) {
             executesFrom: {},
             calledFrom: {},
             callsToExternal: {},
-            branches: {},
-            cartridges: {}
+            branches: [],
+            cartridges: []
         }
     }
 }
