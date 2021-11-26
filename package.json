@@ -1,0 +1,33 @@
+{
+  "name": "sfcc-analyser",
+  "version": "1.0.0",
+  "description": "A node script, which allows to analyse pipeline and controller usage. Ideal to identify potentially unused code.",
+  "main": "analyse.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node analyse.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andreas-Schoenefeldt/SFCCAnalyser.git"
+  },
+  "keywords": [
+    "code",
+    "quality",
+    "code",
+    "usage",
+    "sfcc",
+    "shell",
+    "script"
+  ],
+  "author": "Andreas Schönefeldt",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Andreas-Schoenefeldt/SFCCAnalyser/issues"
+  },
+  "homepage": "https://github.com/Andreas-Schoenefeldt/SFCCAnalyser#readme",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.10",
+    "inquirer": "^8.2.0"
+  }
+}
