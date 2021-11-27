@@ -54,7 +54,31 @@ inquirer.prompt([
                 }
             }
         }, function () {
+            // transform into csv
+            const rows = [];
+
+            Object.keys(pipes).forEach(function (pipeName) {
+                const pipeConf = pipes[pipeName]
+                rows.push({
+                    pipeline: `${pipeName} (${pipeConf.cartridges.join(', ')})`,
+                    'called from other pipelines': `- ${Object.keys(pipeConf.calledFrom).join("\n- ")}`,
+                    'called from controllers / scripts': `- ${Object.keys(pipeConf.executesFrom).join("\n- ")}`,
+                    'references to other pipelines': `- ${Object.keys(pipeConf.callsToExternal).join("\n- ")}`
+                })
+            });
+
+            const csv = require('@fast-csv/format');
+
+            if (!fs.existsSync('./data/result')) {
+                fs.mkdirSync('./data/result', {recursive : true});
+            }
+
+            // @todo: take the name of the file from the project folder
+            csv.writeToPath('./data/result/analyse.csv', rows, {headers: true});
+
             console.log(pipes);
+
+            console.log('Analysed the Project Successfully.');
         });
     });
 
