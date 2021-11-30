@@ -61,9 +61,9 @@ inquirer.prompt([
                 const pipeConf = pipes[pipeName]
                 rows.push({
                     pipeline: `${pipeName} (${pipeConf.cartridges.join(', ')})`,
-                    'called from other pipelines': `- ${Object.keys(pipeConf.calledFrom).join("\n- ")}`,
-                    'called from controllers / scripts': `- ${Object.keys(pipeConf.executesFrom).join("\n- ")}`,
-                    'references to other pipelines': `- ${Object.keys(pipeConf.callsToExternal).join("\n- ")}`
+                    'called from other pipelines': Object.keys(pipeConf.calledFrom).length ? `- ${Object.keys(pipeConf.calledFrom).join("\n- ")}` : '',
+                    'called from controllers / scripts': Object.keys(pipeConf.executesFrom).length ? `- ${Object.keys(pipeConf.executesFrom).join("\n- ")}` : '',
+                    'references to other pipelines': Object.keys(pipeConf.callsToExternal).length ? `- ${Object.keys(pipeConf.callsToExternal).join("\n- ")}` : ''
                 })
             });
 
@@ -76,9 +76,10 @@ inquirer.prompt([
             // @todo: take the name of the file from the project folder
             csv.writeToPath('./data/result/analyse.csv', rows, {headers: true});
 
-            console.log(pipes);
+            // @todo: print the results mysql style?
+            // console.log(pipes);
 
-            console.log('Analysed the Project Successfully.');
+            console.log(`Analysed ${Object.keys(pipes).length} Pipelines in the Project successfully.`);
         });
     });
 
