@@ -44,6 +44,7 @@ inquirer.prompt([
                         require('./src/parser/controller'),
                         require('./src/parser/pipeline'),
                         require('./src/parser/script'),
+                        require('./src/parser/template'),
                     ], function (fnc, callback) {
                         fnc(cartridgeBase, cartridgeName, callback);
                     }, function () {
@@ -62,6 +63,7 @@ inquirer.prompt([
                 rows.push({
                     pipeline: `${pipeName} (${pipeConf.cartridges.join(', ')})`,
                     'called from other pipelines': Object.keys(pipeConf.calledFrom).length ? `- ${Object.keys(pipeConf.calledFrom).join("\n- ")}` : '',
+                    'called from templates': Object.keys(pipeConf.templateReferences).length ? `- ${Object.keys(pipeConf.templateReferences).join("\n- ")}` : '',
                     'called from controllers / scripts': Object.keys(pipeConf.executesFrom).length ? `- ${Object.keys(pipeConf.executesFrom).join("\n- ")}` : '',
                     'references to other pipelines': Object.keys(pipeConf.callsToExternal).length ? `- ${Object.keys(pipeConf.callsToExternal).join("\n- ")}` : ''
                 })

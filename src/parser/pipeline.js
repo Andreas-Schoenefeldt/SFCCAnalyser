@@ -29,7 +29,7 @@ module.exports = function (cartridgeBase, cartridgeName, cb) {
                             }
                         });
 
-                        $('pipeline').find('call-node').each((j, cn) => {
+                        $('pipeline').find('call-node, jump-node').each((j, cn) => {
 
                             const route = cn.attribs['start-name-ref'];
                             if (route) {
