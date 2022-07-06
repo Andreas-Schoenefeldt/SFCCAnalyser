@@ -15,7 +15,7 @@ module.exports = function (parserFnc, cartridgeBase, cartridgeName, cb) {
                 const stats = fs.lstatSync(base + '/' + folderOrFile);
 
                 if (stats.isDirectory()) {
-                    await async.each(fs.readdirSync(base + '/' + folderOrFile), async function (file, callback) {
+                    await async.each(await fs.promises.readdir(base + '/' + folderOrFile), function (file, callback) {
                         recurseThroughFolderStructure(folderOrFile + '/' + file).then(callback);
                     })
                 } else {

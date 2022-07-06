@@ -23,7 +23,8 @@ module.exports = async function (cartridgesFolder) {
 
                 attributeDefinitions.each(function (j, b) {
                     prefs[type][b.attribs['attribute-id']] = {
-                        'occurences' : []
+                        files : {},
+                        count: 0
                     }
                 })
             }
@@ -31,37 +32,56 @@ module.exports = async function (cartridgesFolder) {
 
         const cartridges = await fs.promises.readdir(cartridgesFolder);
 
-        await async.each(cartridges, async (cartridgeName) => {
-            console.log(arguments);
+        async.each(cartridges, (cartridgeName, outerCb) => {
+            if (fs.lstatSync(cartridgesFolder + '/' + cartridgeName).isDirectory()) {
 
-            const cartridgeBase = cartridgesFolder + '/' + cartridgeName + '/cartridge/';
+                const cartridgeBase = cartridgesFolder + '/' + cartridgeName + '/cartridge/';
 
-            const result = await async.each([
-                require('../walker/controller').bind(null, async function (file, cartridgeName, fileName) {
-                    await async.each(Object.keys(prefs), async (group) => {
-                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
-                    });
-                }),
-                require('../walker/pipeline').bind(null, async function (file, cartridgeName, fileName) {
-                    await async.each(Object.keys(prefs), async (group) => {
-                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
-                    });
-                }),
-                require('../walker/script').bind(null, async function (file, cartridgeName, fileName) {
-                    await async.each(Object.keys(prefs), async (group) => {
-                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
-                    });
-                }),
-                require('../walker/template').bind(null, async function (file, cartridgeName, fileName) {
-                    await async.each(Object.keys(prefs), async (group) => {
-                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
-                    });
-                }),
-            ]);
+                const parser = async function (file, cartridgeName, fileName) {
+                    return new Promise(function(resolve, reject){
+                        async.each(Object.keys(prefs), (group, cb) => {
+                            parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs[group]), prefs[group]).then(cb);
+                        }, function () {
+                            resolve();
+                        });
+                    })
+                }
 
-        })
+                async.each([
+                    require('../walker/controller').bind(null, parser),
+                    require('../walker/pipeline').bind(null, parser),
+                    require('../walker/script').bind(null, parser),
+                    require('../walker/model').bind(null, parser),
+                    require('../walker/template').bind(null, parser),
+                ], function (fnc, callback) {
+                    fnc(cartridgeBase, cartridgeName, callback);
+                }, function () {
+                    outerCb();
+                });
+            } else {
+                outerCb();
+            }
+        }, () => {
+            console.log('After loop - listing potentially unused custom attributes:');
+            console.log('');
 
-        console.log('After loop');
+            Object.keys(prefs).forEach((group) => {
+
+                const zeroPrefs = Object.keys(prefs[group]).filter((attributeId) => {
+                    return !prefs[group][attributeId].count;
+                });
+
+                if (zeroPrefs.length) {
+
+                    console.log('');
+                    console.log(group);
+
+                    zeroPrefs.forEach((attributeId) => {
+                        console.log(` * ${attributeId}`);
+                    });
+                }
+            });
+        });
 
     } else {
         console.error(metaDefinitionFile + ' does not exist');

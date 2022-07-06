@@ -5,20 +5,20 @@ const acceptedExtensions = ['.js', '.ds']
 
 module.exports = function (parserFnc, cartridgeBase, cartridgeName, cb) {
 
-    fs.readdir(cartridgeBase + 'scripts', (err, files) => {
+    fs.readdir(cartridgeBase + 'models', (err, files) => {
         if (!err){
 
             const recurseThroughFolderStructure = async function (folderOrFile) {
 
-                const stats = fs.lstatSync(cartridgeBase + 'scripts/' + folderOrFile);
+                const stats = fs.lstatSync(cartridgeBase + 'models/' + folderOrFile);
 
                 if (stats.isDirectory()) {
-                    await async.each(fs.readdirSync(cartridgeBase + 'scripts/' + folderOrFile), function (file, callback) {
+                    await async.each(fs.readdirSync(cartridgeBase + 'models/' + folderOrFile), function (file, callback) {
                         recurseThroughFolderStructure(folderOrFile + '/' + file).then(callback);
                     })
                 } else {
                     if (acceptedExtensions.indexOf(path.extname(folderOrFile)) > -1) {
-                        await parserFnc(cartridgeBase + 'scripts/' + folderOrFile, cartridgeName, cartridgeBase);
+                        await parserFnc(cartridgeBase + 'models/' + folderOrFile, cartridgeName, cartridgeBase);
                     }
                 }
             }

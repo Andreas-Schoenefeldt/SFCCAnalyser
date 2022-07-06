@@ -81,19 +81,30 @@ module.exports.parseUrlUtils = async function (filePath, cartridgeName, base) {
     })
 }
 
-module.exports.parseCustomAttributeUsage = async function (filePath, cartridgeName, base, attributeNames) {
-    const buff = await fs.promises.readFile(filePath);
-    const content = buff.toString();
-    const regex = new RegExp('\\b(' + attributeNames.join('|') + ')\\b', 'gm');
+module.exports.parseCustomAttributeUsage = async function (filePath, cartridgeName, base, attributeNames, prefs) {
+    return new Promise(function(resolve, reject){
+        const buff = fs.readFileSync(filePath);
+        const content = buff.toString();
+        const regex = new RegExp('(\\.|(\\(|\\[)\\s*[\'"])\\b(' + attributeNames.join('|') + ')\\b', 'gm');
 
-    let m;
+        let m;
 
-    while ((m = regex.exec(content)) !== null) {
-        console.log(m);
-    }
+        while ((m = regex.exec(content)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+
+            if (m.length > 2) {
+                if (!prefs[m[3]].files[filePath]) {
+                    prefs[m[3]].files[filePath] = 0;
+                }
+                prefs[m[3]].files[filePath]++;
+                prefs[m[3]].count++;
+            }
+        }
 
 
-    throw new Error('OM');
-
-
+        resolve();
+    });
 }

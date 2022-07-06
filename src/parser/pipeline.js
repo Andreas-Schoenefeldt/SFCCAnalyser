@@ -1,8 +1,11 @@
-module.exports.parsePipelineRefferences = async function (fileName, content, cartridgeName) {
+const fs = require("fs");
+module.exports.parsePipelineRefferences = async function (file, cartridgeName, fileName) {
     const {assurePipeStructure, pipes} = require("../util/data");
     const pipeId = fileName.replace('.xml', '');
     const cheerio = require('cheerio');
-    const $ = cheerio.load(content);
+
+    const buff = await fs.promises.readFile(file);
+    const $ = cheerio.load(buff.toString());
 
     assurePipeStructure(pipeId);
 
