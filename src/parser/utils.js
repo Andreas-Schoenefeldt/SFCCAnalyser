@@ -80,3 +80,20 @@ module.exports.parseUrlUtils = async function (filePath, cartridgeName, base) {
         });
     })
 }
+
+module.exports.parseCustomAttributeUsage = async function (filePath, cartridgeName, base, attributeNames) {
+    const buff = await fs.promises.readFile(filePath);
+    const content = buff.toString();
+    const regex = new RegExp('\\b(' + attributeNames.join('|') + ')\\b', 'gm');
+
+    let m;
+
+    while ((m = regex.exec(content)) !== null) {
+        console.log(m);
+    }
+
+
+    throw new Error('OM');
+
+
+}

@@ -1,27 +1,24 @@
 const fs = require("fs");
 const path = require('path');
 const async = require("async");
-const {parseUrlUtils} = require("../util/parser");
-const acceptedExtensions = ['.isml']
+const acceptedExtensions = ['.js', '.ds']
 
-module.exports = function (cartridgeBase, cartridgeName, cb) {
+module.exports = function (parserFnc, cartridgeBase, cartridgeName, cb) {
 
-    const base = cartridgeBase + 'templates/default';
-
-    fs.readdir(base, (err, files) => {
+    fs.readdir(cartridgeBase + 'scripts', (err, files) => {
         if (!err){
 
             const recurseThroughFolderStructure = async function (folderOrFile) {
 
-                const stats = fs.lstatSync(base + '/' + folderOrFile);
+                const stats = fs.lstatSync(cartridgeBase + 'scripts/' + folderOrFile);
 
                 if (stats.isDirectory()) {
-                    await async.each(fs.readdirSync(base + '/' + folderOrFile), async function (file, callback) {
+                    await async.each(fs.readdirSync(cartridgeBase + 'scripts/' + folderOrFile), async function (file, callback) {
                         recurseThroughFolderStructure(folderOrFile + '/' + file).then(callback);
                     })
                 } else {
                     if (acceptedExtensions.indexOf(path.extname(folderOrFile)) > -1) {
-                        await parseUrlUtils(base + '/' + folderOrFile, cartridgeName, base + '/');
+                        await parserFnc(folderOrFile, cartridgeName, cartridgeBase);
                     }
                 }
             }
