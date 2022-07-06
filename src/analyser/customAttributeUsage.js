@@ -1,4 +1,6 @@
 const fs = require("fs");
+const async = require("async");
+const {parsePipelineExecute, parseUrlUtils, parseCustomAttributeUsage} = require("../parser/utils");
 
 module.exports = async function (cartridgesFolder) {
 
@@ -29,14 +31,37 @@ module.exports = async function (cartridgesFolder) {
 
         const cartridges = await fs.promises.readdir(cartridgesFolder);
 
-        cartridges.forEach((cartridgeName) => {
-            if (fs.lstatSync(cartridgesFolder + '/' + cartridgeName).isDirectory()) {
-                const cartridgeBase = cartridgesFolder + '/' + cartridgeName + '/cartridge/';
+        await async.each(cartridges, async (cartridgeName) => {
+            console.log(arguments);
 
+            const cartridgeBase = cartridgesFolder + '/' + cartridgeName + '/cartridge/';
 
+            const result = await async.each([
+                require('../walker/controller').bind(null, async function (file, cartridgeName, fileName) {
+                    await async.each(Object.keys(prefs), async (group) => {
+                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
+                    });
+                }),
+                require('../walker/pipeline').bind(null, async function (file, cartridgeName, fileName) {
+                    await async.each(Object.keys(prefs), async (group) => {
+                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
+                    });
+                }),
+                require('../walker/script').bind(null, async function (file, cartridgeName, fileName) {
+                    await async.each(Object.keys(prefs), async (group) => {
+                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
+                    });
+                }),
+                require('../walker/template').bind(null, async function (file, cartridgeName, fileName) {
+                    await async.each(Object.keys(prefs), async (group) => {
+                        await parseCustomAttributeUsage(file, cartridgeName, cartridgeBase, Object.keys(prefs)[group]);
+                    });
+                }),
+            ]);
 
-            }
         })
+
+        console.log('After loop');
 
     } else {
         console.error(metaDefinitionFile + ' does not exist');
