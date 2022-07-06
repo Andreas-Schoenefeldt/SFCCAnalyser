@@ -21,7 +21,7 @@ module.exports = function (cartridgeBase, cartridgeName, cb) {
                     })
                 } else {
                     if (acceptedExtensions.indexOf(path.extname(folderOrFile)) > -1) {
-                        await parseUrlUtils(base + '/' + folderOrFile, cartridgeName, folderOrFile);
+                        await parseUrlUtils(base + '/' + folderOrFile, cartridgeName, base + '/');
                     }
                 }
             }

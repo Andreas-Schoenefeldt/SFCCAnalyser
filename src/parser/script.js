@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require('path');
 const async = require("async");
-const {parsePipelineExecute} = require("../util/parser");
+const {parsePipelineExecute, parseUrlUtils} = require("../util/parser");
 const acceptedExtensions = ['.js', '.ds']
 
 module.exports = function (cartridgeBase, cartridgeName, cb) {
@@ -20,6 +20,7 @@ module.exports = function (cartridgeBase, cartridgeName, cb) {
                 } else {
                     if (acceptedExtensions.indexOf(path.extname(folderOrFile)) > -1) {
                         await parsePipelineExecute(cartridgeBase + 'scripts/' + folderOrFile, cartridgeName, folderOrFile);
+                        await parseUrlUtils(cartridgeBase + 'scripts/' + folderOrFile, cartridgeName, cartridgeBase + 'scripts/');
                     }
                 }
             }

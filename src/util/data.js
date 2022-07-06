@@ -18,7 +18,7 @@ const pipes = {
         calledFrom: {
             'cartridge:pipeName': count
         },
-        templateReferences: {
+        urlReferences: {
             'cartridge:template': count
         },
         callsToExternal: {
@@ -41,7 +41,7 @@ module.exports.assurePipeStructure = function (pipeId) {
             executesFrom: {},
             calledFrom: {},
             callsToExternal: {},
-            templateReferences: {},
+            urlReferences: {},
             branches: [],
             cartridges: []
         }

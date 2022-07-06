@@ -41,7 +41,7 @@ module.exports.parsePipelineExecute = async function (filePath, cartridgeName, f
     })
 }
 
-module.exports.parseUrlUtils = async function (filePath, cartridgeName, file) {
+module.exports.parseUrlUtils = async function (filePath, cartridgeName, base) {
 
     return new Promise(function(resolve, reject){
         fs.readFile(filePath, (err, buff) => {
@@ -61,14 +61,14 @@ module.exports.parseUrlUtils = async function (filePath, cartridgeName, file) {
                         const route = m[2];
                         const parts = route.split('-');
                         const pipeId = parts[0];
-                        const templateId = cartridgeName + ':' + filePath.split('templates/default/')[1];
+                        const templateId = cartridgeName + ':' + filePath.split(base)[1];
 
                         assurePipeStructure(pipeId);
 
-                        if (pipes[pipeId].templateReferences[templateId]) {
-                            pipes[pipeId].templateReferences[templateId] = pipes[pipeId].templateReferences[templateId] + 1;
+                        if (pipes[pipeId].urlReferences[templateId]) {
+                            pipes[pipeId].urlReferences[templateId] = pipes[pipeId].urlReferences[templateId] + 1;
                         } else {
-                            pipes[pipeId].templateReferences[templateId] = 1;
+                            pipes[pipeId].urlReferences[templateId] = 1;
                         }
                     }
                 }
