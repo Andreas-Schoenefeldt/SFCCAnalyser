@@ -86,6 +86,12 @@ fs.promises.readdir(dir).then((files) => {
 
         fileWriter.write(`<?xml version="1.0" encoding="UTF-8"?>\n`);
         fileWriter.write(`<metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">\n`);
+
+        Object.keys(fatStructure).forEach(function (typeId) {
+            fileWriter.write(`    <type-extension type-id="${typeId}">\n`);
+            fileWriter.write(`    </type-extension>\n`);
+        })
+
         fileWriter.write(`</metadata>`);
 
     })
