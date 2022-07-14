@@ -1,7 +1,6 @@
 const fs = require('fs');
 const XmlStream = require('xml-stream');
 const async = require("async");
-const path = require("path");
 
 const dir = './data/meta-xmls/';
 
@@ -11,6 +10,10 @@ const fatStructure = {};
 const combinedFile = dir + 'combined.xml';
 if (fs.existsSync(combinedFile)) {
     fs.unlinkSync(combinedFile);
+}
+
+function htmlEntities(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // run through the files
@@ -28,9 +31,9 @@ fs.promises.readdir(dir).then((files) => {
               const reader = new XmlStream(xmlFileReadStream);
 
               let currentType;
-              let currentAttribute;
 
               reader.collect('attribute');
+              reader.collect('description');
               reader.collect('display-name');
               reader.collect('value-definition');
 
@@ -47,17 +50,16 @@ fs.promises.readdir(dir).then((files) => {
                   // console.log(file + ': ' + currentType);
               });
 
-              reader.on('startElement: type-extension custom-attribute-definitions attribute-definition', (el) => {
-                  currentAttribute = el['$']['attribute-id'];
-                  if (!fatStructure[currentType]['custom-attribute-definitions'][currentAttribute]) {
-                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = {};
-                  }
-                  // console.log('  ' + currentType + ': ' + currentAttribute)
-              })
-
               reader.on('endElement: type-extension custom-attribute-definitions attribute-definition', (el) => {
-                  console.log(el);
-                  exit;
+                  const currentAttribute = el['$']['attribute-id'];
+
+                  if (!fatStructure[currentType]['custom-attribute-definitions'][currentAttribute]) {
+                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = el;
+                  } else {
+                      // @todo - deep compare of the nodes
+                      console.log(currentAttribute + ' on ' + currentType + ' already exists.');
+                  }
+
               });
 
               reader.on('endElement: type-extension attribute-group', (el) => {
@@ -92,14 +94,45 @@ fs.promises.readdir(dir).then((files) => {
         console.log('Done with all :)');
         console.log('Writing the combined file');
 
+        const indentString = '    ';
         const fileWriter = fs.createWriteStream(combinedFile);
 
         function writeXMLNode (tagName, attributes, indent = 0) {
-            fileWriter.write(`${'    '.repeat(indent)}<${tagName}${
+            const isNode = typeof attributes === 'object'
+            const nodeText = !isNode ? attributes : attributes.$text;
+            const children = isNode ? Object.keys(attributes).filter((childTag) => {
+                return childTag.indexOf('$') !== 0;
+            }) : [];
+
+            fileWriter.write(`${indentString.repeat(indent)}<${tagName}${
                 attributes.$ ? ' ' + Object.keys(attributes.$).map((key) => {
                     return key + '="' + attributes.$[key] + '"';
                 }).join(' ') : ''
-            }${attributes.$text ? '>' + attributes.$text + '</' + tagName + '>' : '/>'}\n`)
+            }${nodeText || children.length ? '>' : '/>'}`);
+
+            if (nodeText) {
+                fileWriter.write(htmlEntities(nodeText));
+            }
+
+            if (children.length) {
+                fileWriter.write('\n');
+                children.forEach((childTag) => {
+
+                    if (Array.isArray(attributes[childTag])) {
+                        attributes[childTag].forEach((childAttributes) => {
+                            writeXMLNode(childTag, childAttributes, indent + 1);
+                        })
+                    } else {
+                        writeXMLNode(childTag, attributes[childTag], indent + 1);
+                    }
+                });
+            }
+
+            if (nodeText || children.length) {
+                fileWriter.write(`${children.length ? indentString.repeat(indent) : ''}</${tagName}>`);
+            }
+
+            fileWriter.write('\n');
         }
 
         fileWriter.write(`<?xml version="1.0" encoding="UTF-8"?>\n`);
@@ -112,10 +145,8 @@ fs.promises.readdir(dir).then((files) => {
                 fileWriter.write(`        <custom-attribute-definitions>\n`);
 
                 Object.keys(fatStructure[typeId]['custom-attribute-definitions']).forEach((attributeId) => {
-                    fileWriter.write(`            <attribute-definition attribute-id="${attributeId}">\n`);
-                    fileWriter.write(`            </attribute-definition>\n`);
+                    writeXMLNode('attribute-definition', fatStructure[typeId]['custom-attribute-definitions'][attributeId], 3)
                 })
-
                 fileWriter.write(`        </custom-attribute-definitions>\n`);
             }
 
