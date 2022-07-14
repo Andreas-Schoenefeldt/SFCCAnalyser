@@ -57,8 +57,8 @@ module.exports = function (cartridgesFolder) {
 
             const csv = require('@fast-csv/format');
 
-            if (!fs.existsSync('../../data/result')) {
-                fs.mkdirSync('../../data/result', {recursive : true});
+            if (!fs.existsSync(__dirname + '/../../data/result')) {
+                fs.mkdirSync(__dirname + '/../../data/result', {recursive : true});
             }
 
             // @todo: take the name of the file from the project folder

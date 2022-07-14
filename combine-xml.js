@@ -1,6 +1,7 @@
 const fs = require('fs');
 const XmlStream = require('xml-stream');
 const async = require("async");
+const inquirer = require("inquirer");
 
 const dir = './data/meta-xmls/';
 
@@ -186,6 +187,20 @@ fs.promises.readdir(dir).then((files) => {
       }
     }), async () => {
         console.log('Done with all :)');
+
+        const inquirer = require('inquirer');
+
+        const answers = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'filter',
+                message: 'Would you like to filter out unused custom attributes (please make sure the analyser ran before)',
+                default: true
+            }
+        ]);
+
+        const filterPrefs = answers.filter ? require('./data/result/custom-attribute-usage.json') : {};
+
         console.log('Writing the combined file');
 
         const indentString = '    ';
@@ -297,41 +312,54 @@ fs.promises.readdir(dir).then((files) => {
         Object.keys(fatStructure).sort().forEach(function (typeId) {
             fileWriter.write(`    <type-extension type-id="${typeId}">\n`);
 
-            if (Object.keys(fatStructure[typeId]['custom-attribute-definitions']).length) {
-                fileWriter.write(`        <custom-attribute-definitions>\n`);
 
-                Object.keys(fatStructure[typeId]['custom-attribute-definitions']).forEach((attributeId) => {
+            const attributeIds = Object.keys(fatStructure[typeId]['custom-attribute-definitions']).filter((attributeId) => {
+                return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0;
+            });
+
+            if (attributeIds.length) {
+                fileWriter.write(`        <custom-attribute-definitions>\n`);
+                attributeIds.forEach((attributeId) => {
                     writeXMLNode('attribute-definition', fatStructure[typeId]['custom-attribute-definitions'][attributeId], 3)
                 })
                 fileWriter.write(`        </custom-attribute-definitions>\n`);
-            }
 
-            if (Object.keys(fatStructure[typeId]['group-definitions']).length) {
-                // do not write empty group definitions
-                if (Object.keys(fatStructure[typeId]['group-definitions']).some((groupId) => {
-                    return fatStructure[typeId]['group-definitions'][groupId].attribute?.length
-                })) {
 
-                    fileWriter.write(`        <group-definitions>\n`);
 
-                    Object.keys(fatStructure[typeId]['group-definitions']).forEach((groupId) => {
-
-                        if (fatStructure[typeId]['group-definitions'][groupId].attribute?.length) {
-                            fileWriter.write(`            <attribute-group group-id="${groupId}">\n`);
-
-                            fatStructure[typeId]['group-definitions'][groupId]['display-name']?.forEach((nodeConf) => {
-                                writeXMLNode('display-name', nodeConf, 4);
+                if (Object.keys(fatStructure[typeId]['group-definitions']).length) {
+                    // do not write empty group definitions
+                    if (Object.keys(fatStructure[typeId]['group-definitions']).some((groupId) => {
+                        return fatStructure[typeId]['group-definitions'][groupId].attribute.length &&
+                            fatStructure[typeId]['group-definitions'][groupId].attribute.some((attributeId) => {
+                                return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0;
                             })
+                    })) {
 
-                            fatStructure[typeId]['group-definitions'][groupId].attribute.forEach((attributeId) => {
-                                fileWriter.write(`                <attribute attribute-id="${attributeId}"/>\n`);
-                            });
+                        fileWriter.write(`        <group-definitions>\n`);
 
-                            fileWriter.write(`            </attribute-group>\n`);
-                        }
-                    });
+                        Object.keys(fatStructure[typeId]['group-definitions']).forEach((groupId) => {
 
-                    fileWriter.write(`        </group-definitions>\n`);
+                            if (fatStructure[typeId]['group-definitions'][groupId].attribute.some((attributeId) => {
+                                return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0;
+                            })) {
+                                fileWriter.write(`            <attribute-group group-id="${groupId}">\n`);
+
+                                fatStructure[typeId]['group-definitions'][groupId]['display-name']?.forEach((nodeConf) => {
+                                    writeXMLNode('display-name', nodeConf, 4);
+                                })
+
+                                fatStructure[typeId]['group-definitions'][groupId].attribute.forEach((attributeId) => {
+                                    if (filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0) {
+                                        fileWriter.write(`                <attribute attribute-id="${attributeId}"/>\n`);
+                                    }
+                                });
+
+                                fileWriter.write(`            </attribute-group>\n`);
+                            }
+                        });
+
+                        fileWriter.write(`        </group-definitions>\n`);
+                    }
                 }
             }
 

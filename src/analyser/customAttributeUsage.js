@@ -1,6 +1,6 @@
 const fs = require("fs");
 const async = require("async");
-const {parsePipelineExecute, parseUrlUtils, parseCustomAttributeUsage} = require("../parser/utils");
+const {parseCustomAttributeUsage} = require("../parser/utils");
 
 module.exports = async function (cartridgesFolder) {
 
@@ -62,6 +62,9 @@ module.exports = async function (cartridgesFolder) {
                 outerCb();
             }
         }, () => {
+
+            fs.writeFileSync(__dirname + '/../../data/result/custom-attribute-usage.json', JSON.stringify(prefs, null, 2));
+
             console.log('After loop - listing potentially unused custom attributes:');
             console.log('');
 

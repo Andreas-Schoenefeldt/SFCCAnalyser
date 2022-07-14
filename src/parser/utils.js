@@ -85,7 +85,7 @@ module.exports.parseCustomAttributeUsage = async function (filePath, cartridgeNa
     return new Promise(function(resolve, reject){
         const buff = fs.readFileSync(filePath);
         const content = buff.toString();
-        const regex = new RegExp('(\\.|(\\(|\\[)\\s*[\'"])\\b(' + attributeNames.join('|') + ')\\b', 'gm');
+        const regex = new RegExp('(ishooktemplate\\s*service="|\\.|(\\(|\\[)\\s*[\'"])\\b(' + attributeNames.join('|') + ')\\b', 'gm');
 
         let m;
 
