@@ -32,6 +32,7 @@ fs.promises.readdir(dir).then((files) => {
 
               reader.collect('attribute');
               reader.collect('display-name');
+              reader.collect('value-definition');
 
               reader.on('startElement: type-extension', (el) => {
                   currentType = el['$']['type-id'];
@@ -53,6 +54,11 @@ fs.promises.readdir(dir).then((files) => {
                   }
                   // console.log('  ' + currentType + ': ' + currentAttribute)
               })
+
+              reader.on('endElement: type-extension custom-attribute-definitions attribute-definition', (el) => {
+                  console.log(el);
+                  exit;
+              });
 
               reader.on('endElement: type-extension attribute-group', (el) => {
                   const groupId = el.$['group-id'];
