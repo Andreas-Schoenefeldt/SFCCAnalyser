@@ -1,7 +1,6 @@
 const fs = require('fs');
 const XmlStream = require('xml-stream');
 const async = require("async");
-const _ = require('lodash');
 
 const dir = './data/meta-xmls/';
 
@@ -38,6 +37,7 @@ fs.promises.readdir(dir).then((files) => {
               reader.collect('display-name');
               reader.collect('value-definition');
               reader.collect('display');
+              reader.collect('unit');
 
               reader.on('startElement: type-extension', (el) => {
                   currentType = el['$']['type-id'];
@@ -53,16 +53,107 @@ fs.promises.readdir(dir).then((files) => {
               });
 
               reader.on('endElement: type-extension custom-attribute-definitions attribute-definition', (el) => {
-                  const currentAttribute = el['$']['attribute-id'];
+                  try {
+                      const currentAttribute = el['$']['attribute-id'];
 
-                  if (!fatStructure[currentType]['custom-attribute-definitions'][currentAttribute]) {
-                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = {};
+                      if (!fatStructure[currentType]['custom-attribute-definitions'][currentAttribute]) {
+                          fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = el;
+                      } else {
+
+                          // deep compare
+                          Object.keys(el).forEach((key) => {
+
+                              const existing = fatStructure[currentType]['custom-attribute-definitions'][currentAttribute][key];
+
+                              if (JSON.stringify(existing) !== JSON.stringify(el[key])) {
+
+                                  if (Array.isArray(el[key]) && Array.isArray(existing)) {
+
+                                      el[key].forEach((item) => {
+                                          if (item.$ && item.$['xml:lang']) {
+                                              let found = false;
+                                              for (let i = 0; i < existing.length; i++) {
+
+                                                  if (currentAttribute === 'age') {
+                                                      console.log('comparing ' + existing[i].$['xml:lang'] + ' == ' + item.$['xml:lang']);
+                                                  }
+
+                                                  if (existing[i].$['xml:lang'] === item.$['xml:lang']) {
+                                                      existing[i] = item;
+                                                      found = true;
+                                                      break;
+                                                  }
+                                              }
+
+                                              if (!found) {
+                                                  existing.push(item);
+                                              }
+
+                                          } else {
+                                              console.log('a Difference of ' + key + ' of ' + currentAttribute + ' ' + currentType);
+                                              console.log(fatStructure[currentType]['custom-attribute-definitions'][currentAttribute][key]);
+                                              console.log(el[key]);
+
+                                              exit;
+                                          }
+                                      })
+                                  } else if (typeof (el[key]) === 'object' && typeof(existing) === 'object') {
+
+                                      if (key === 'value-definitions') {
+                                          // run the the definition array
+                                          el[key]['value-definition'].forEach((def) => {
+                                              let foundEntry = false;
+
+                                              for (let i = 0; i < existing['value-definition'].length; i++) {
+                                                  if (def.value === existing['value-definition'][i].value) {
+                                                      foundEntry = true;
+
+                                                      def.display.forEach((item) => {
+                                                          // test the display values
+                                                          let found = false;
+
+                                                          for (let k = 0; k < existing['value-definition'][i].display.length; k++) {
+                                                              if (existing['value-definition'][i].display[k].$['xml:lang'] === item.$['xml:lang']) {
+                                                                  existing['value-definition'][i].display[k] = item;
+                                                                  found = true;
+                                                                  break;
+                                                              }
+                                                          }
+
+                                                          if (!found) {
+                                                              existing['value-definition'][i].display.push(item);
+                                                          }
+                                                      })
+                                                  }
+                                              }
+
+                                              if (!foundEntry) {
+                                                  existing['value-definition'].push(def);
+                                              }
+                                          })
+
+                                      } else {
+                                          console.log('b Difference of ' + key + ' of ' + currentAttribute + ' ' + currentType);
+                                          console.log(fatStructure[currentType]['custom-attribute-definitions'][currentAttribute][key]);
+                                          console.log(el[key]);
+                                          exit;
+                                      }
+                                  } else {
+
+                                      if (existing !== undefined) {
+                                          console.log(`  > Setting ${key} of ${currentType}:${currentAttribute} from ${existing} to ${el[key]} `);
+                                      }
+                                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute][key] = el[key];
+                                  }
+                              }
+                          })
+
+                      }
+                  } catch (e) {
+                      console.log(e);
+                      exit;
                   }
 
-                  fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = _.merge(
-                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute],
-                      el
-                  );
               });
 
               reader.on('endElement: type-extension attribute-group', (el) => {
@@ -98,7 +189,41 @@ fs.promises.readdir(dir).then((files) => {
         console.log('Writing the combined file');
 
         const indentString = '    ';
+        const attributeDefinitionChildOrder = [
+            'display-name',
+            'description',
+            'type',
+            'localizable-flag',
+            'site-specific-flag',
+            'mandatory-flag',
+            'visible-flag',
+            'externally-managed-flag',
+            'order-required-flag',
+            'externally-defined-flag',
+            'field-length',
+            'field-height',
+            'min-value',
+            'max-value',
+            'min-length',
+            'select-multiple-flag',
+            'unit',
+            'value-definitions',
+            'default-value'
+        ];
+
         const fileWriter = fs.createWriteStream(combinedFile);
+
+        const langCompare = (a, b) => {
+            if (a.$['xml:lang'] === b.$['xml:lang']) {
+                return 0;
+            } else if (a.$['xml:lang'] === 'x-default') {
+                return -1;
+            } else if (b.$['xml:lang'] === 'x-default') {
+                return 1;
+            } else {
+                return a.$['xml:lang'].localeCompare(b.$['xml:lang']);
+            }
+        };
 
         function writeXMLNode (tagName, attributes, indent = 0) {
             const isNode = typeof attributes === 'object'
@@ -106,6 +231,34 @@ fs.promises.readdir(dir).then((files) => {
             const children = isNode ? Object.keys(attributes).filter((childTag) => {
                 return childTag.indexOf('$') !== 0;
             }) : [];
+
+
+
+            switch (tagName) {
+                // assure a certain order of children (SFCC import requires it)
+                case 'attribute-definition':
+                    children.sort(function (a, b) {
+                        return attributeDefinitionChildOrder.indexOf(a) - attributeDefinitionChildOrder.indexOf(b);
+                    })
+
+                    if (attributes['display-name']) {
+                        attributes['display-name'].sort(langCompare);
+                    }
+
+                    break;
+                case 'value-definition':
+                    // sort the display nodes
+                    if (attributes.display) {
+                        attributes.display.sort(langCompare);
+                    }
+                    break;
+                // prevent a few default tags fro beeing written
+                case 'select-multiple-flag':
+                    if (nodeText === 'false') {
+                        return;
+                    }
+                    break;
+            }
 
             fileWriter.write(`${indentString.repeat(indent)}<${tagName}${
                 attributes.$ ? ' ' + Object.keys(attributes.$).map((key) => {
@@ -154,26 +307,32 @@ fs.promises.readdir(dir).then((files) => {
             }
 
             if (Object.keys(fatStructure[typeId]['group-definitions']).length) {
-                fileWriter.write(`        <group-definitions>\n`);
+                // do not write empty group definitions
+                if (Object.keys(fatStructure[typeId]['group-definitions']).some((groupId) => {
+                    return fatStructure[typeId]['group-definitions'][groupId].attribute?.length
+                })) {
 
-                Object.keys(fatStructure[typeId]['group-definitions']).forEach((groupId) => {
+                    fileWriter.write(`        <group-definitions>\n`);
 
-                    if (fatStructure[typeId]['group-definitions'][groupId].attribute?.length) {
-                        fileWriter.write(`            <attribute-group group-id="${groupId}">\n`);
+                    Object.keys(fatStructure[typeId]['group-definitions']).forEach((groupId) => {
 
-                        fatStructure[typeId]['group-definitions'][groupId]['display-name']?.forEach((nodeConf) => {
-                            writeXMLNode('display-name', nodeConf, 4);
-                        })
+                        if (fatStructure[typeId]['group-definitions'][groupId].attribute?.length) {
+                            fileWriter.write(`            <attribute-group group-id="${groupId}">\n`);
 
-                        fatStructure[typeId]['group-definitions'][groupId].attribute.forEach((attributeId) => {
-                            fileWriter.write(`                <attribute attribute-id="${attributeId}"/>\n`);
-                        });
+                            fatStructure[typeId]['group-definitions'][groupId]['display-name']?.forEach((nodeConf) => {
+                                writeXMLNode('display-name', nodeConf, 4);
+                            })
 
-                        fileWriter.write(`            </attribute-group>\n`);
-                    }
-                });
+                            fatStructure[typeId]['group-definitions'][groupId].attribute.forEach((attributeId) => {
+                                fileWriter.write(`                <attribute attribute-id="${attributeId}"/>\n`);
+                            });
 
-                fileWriter.write(`        </group-definitions>\n`);
+                            fileWriter.write(`            </attribute-group>\n`);
+                        }
+                    });
+
+                    fileWriter.write(`        </group-definitions>\n`);
+                }
             }
 
             fileWriter.write(`    </type-extension>\n`);
