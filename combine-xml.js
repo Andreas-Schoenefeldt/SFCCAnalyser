@@ -10,7 +10,7 @@ const fatStructure = {};
 // preperation
 const combinedFile = dir + 'combined.xml';
 if (fs.existsSync(combinedFile)) {
-    await fs.promises.unlink(combinedFile);
+    fs.unlinkSync(combinedFile);
 }
 
 // run through the files
@@ -18,7 +18,9 @@ fs.promises.readdir(dir).then((files) => {
 
     async.series(files.map((file) => {
       return function (cb) {
-          if (file.indexOf('.xml') > 0) {
+          const regex = new RegExp('\\.xml$', 'gm')
+
+          if (regex.test(file)) {
 
               console.log('starting ' + file);
 
@@ -54,9 +56,10 @@ fs.promises.readdir(dir).then((files) => {
 
               reader.on('endElement: type-extension attribute-group', (el) => {
                   const groupId = el.$['group-id'];
+
                   if (!fatStructure[currentType]['group-definitions'][groupId]) {
                       fatStructure[currentType]['group-definitions'][groupId] = {
-                          'display-name' : groupId['display-name'],
+                          'display-name' : el['display-name'],
                           'attribute' : [],
                       }
                   }
@@ -75,24 +78,69 @@ fs.promises.readdir(dir).then((files) => {
               })
 
           } else {
+              console.log('Ignoring ' + file);
               cb();
           }
       }
     }), async () => {
         console.log('Done with all :)');
-        console.log('Writing te combined file');
+        console.log('Writing the combined file');
 
         const fileWriter = fs.createWriteStream(combinedFile);
+
+        function writeXMLNode (tagName, attributes, indent = 0) {
+            fileWriter.write(`${'    '.repeat(indent)}<${tagName}${
+                attributes.$ ? ' ' + Object.keys(attributes.$).map((key) => {
+                    return key + '="' + attributes.$[key] + '"';
+                }).join(' ') : ''
+            }${attributes.$text ? '>' + attributes.$text + '</' + tagName + '>' : '/>'}\n`)
+        }
 
         fileWriter.write(`<?xml version="1.0" encoding="UTF-8"?>\n`);
         fileWriter.write(`<metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">\n`);
 
-        Object.keys(fatStructure).forEach(function (typeId) {
+        Object.keys(fatStructure).sort().forEach(function (typeId) {
             fileWriter.write(`    <type-extension type-id="${typeId}">\n`);
+
+            if (Object.keys(fatStructure[typeId]['custom-attribute-definitions']).length) {
+                fileWriter.write(`        <custom-attribute-definitions>\n`);
+
+                Object.keys(fatStructure[typeId]['custom-attribute-definitions']).forEach((attributeId) => {
+                    fileWriter.write(`            <attribute-definition attribute-id="${attributeId}">\n`);
+                    fileWriter.write(`            </attribute-definition>\n`);
+                })
+
+                fileWriter.write(`        </custom-attribute-definitions>\n`);
+            }
+
+            if (Object.keys(fatStructure[typeId]['group-definitions']).length) {
+                fileWriter.write(`        <group-definitions>\n`);
+
+                Object.keys(fatStructure[typeId]['group-definitions']).forEach((groupId) => {
+
+                    if (fatStructure[typeId]['group-definitions'][groupId].attribute?.length) {
+                        fileWriter.write(`            <attribute-group group-id="${groupId}">\n`);
+
+                        fatStructure[typeId]['group-definitions'][groupId]['display-name']?.forEach((nodeConf) => {
+                            writeXMLNode('display-name', nodeConf, 4);
+                        })
+
+                        fatStructure[typeId]['group-definitions'][groupId].attribute.forEach((attributeId) => {
+                            fileWriter.write(`                <attribute attribute-id="${attributeId}"/>\n`);
+                        });
+
+                        fileWriter.write(`            </attribute-group>\n`);
+                    }
+                });
+
+                fileWriter.write(`        </group-definitions>\n`);
+            }
+
             fileWriter.write(`    </type-extension>\n`);
         })
 
         fileWriter.write(`</metadata>`);
+        fileWriter.close();
 
     })
 
