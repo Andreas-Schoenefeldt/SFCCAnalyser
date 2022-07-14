@@ -26,3 +26,9 @@ Create a `data/ignores.json` file and add the cartridge names to the list. Examp
   "bc_library"
 ]
 ```
+
+# Combine and analyse system objecttype extension XML Files
+
+1. put all xml files you would like to merge into one in `./data/meta-xmls/`
+2. run `node combine-xml.js`
+3. the resulting merged and cleaned xml file will be in `./data/meta-xmls/combined.xml`
