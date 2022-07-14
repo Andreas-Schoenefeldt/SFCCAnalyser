@@ -1,6 +1,7 @@
 const fs = require('fs');
 const XmlStream = require('xml-stream');
 const async = require("async");
+const _ = require('lodash');
 
 const dir = './data/meta-xmls/';
 
@@ -36,6 +37,7 @@ fs.promises.readdir(dir).then((files) => {
               reader.collect('description');
               reader.collect('display-name');
               reader.collect('value-definition');
+              reader.collect('display');
 
               reader.on('startElement: type-extension', (el) => {
                   currentType = el['$']['type-id'];
@@ -54,12 +56,13 @@ fs.promises.readdir(dir).then((files) => {
                   const currentAttribute = el['$']['attribute-id'];
 
                   if (!fatStructure[currentType]['custom-attribute-definitions'][currentAttribute]) {
-                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = el;
-                  } else {
-                      // @todo - deep compare of the nodes
-                      console.log(currentAttribute + ' on ' + currentType + ' already exists.');
+                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = {};
                   }
 
+                  fatStructure[currentType]['custom-attribute-definitions'][currentAttribute] = _.merge(
+                      fatStructure[currentType]['custom-attribute-definitions'][currentAttribute],
+                      el
+                  );
               });
 
               reader.on('endElement: type-extension attribute-group', (el) => {
