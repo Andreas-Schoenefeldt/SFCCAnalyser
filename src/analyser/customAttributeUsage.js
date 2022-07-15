@@ -30,8 +30,13 @@ module.exports = async function (cartridgesFolder) {
             }
         })
 
-        const cartridges = await fs.promises.readdir(cartridgesFolder);
+        const catalogueRefinementDefinitions = await require('./analyseCatalogueRefinementDefinitions')(__dirname + '/../../data/catalogs');
 
+        Object.keys(catalogueRefinementDefinitions).forEach((attributeId) => {
+            prefs['Product'][attributeId] = catalogueRefinementDefinitions[attributeId];
+        });
+
+        const cartridges = await fs.promises.readdir(cartridgesFolder);
         async.each(cartridges, (cartridgeName, outerCb) => {
             if (fs.lstatSync(cartridgesFolder + '/' + cartridgeName).isDirectory()) {
 

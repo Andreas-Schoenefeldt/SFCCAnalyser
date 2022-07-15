@@ -1,7 +1,6 @@
 const fs = require('fs');
 const XmlStream = require('xml-stream');
 const async = require("async");
-const inquirer = require("inquirer");
 
 const dir = './data/meta-xmls/';
 
@@ -190,6 +189,12 @@ fs.promises.readdir(dir).then((files) => {
 
         const inquirer = require('inquirer');
 
+        /**
+         * holds a couple of custom functions, which can return true (definete yes), false (definete no) or null (I don't care)
+         * @type {{shouldIncludeCustomAttribute?: function}}
+         */
+        const config = fs.existsSync('./data/config.js') ? require('./data/config') : {};
+
         const answers = await inquirer.prompt([
             {
                 type: 'confirm',
@@ -240,14 +245,24 @@ fs.promises.readdir(dir).then((files) => {
             }
         };
 
+        const shouldIncludeCustomAttribute = (typeId, attributeId) => {
+            if (config.shouldIncludeCustomAttribute) {
+                const customResult = config.shouldIncludeCustomAttribute(typeId, attributeId, fatStructure[typeId]['custom-attribute-definitions'][attributeId]);
+
+                if (typeof customResult === 'boolean') {
+                    return customResult;
+                }
+            }
+
+            return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0
+        }
+
         function writeXMLNode (tagName, attributes, indent = 0) {
             const isNode = typeof attributes === 'object'
             const nodeText = !isNode ? attributes : attributes.$text;
             const children = isNode ? Object.keys(attributes).filter((childTag) => {
                 return childTag.indexOf('$') !== 0;
             }) : [];
-
-
 
             switch (tagName) {
                 // assure a certain order of children (SFCC import requires it)
@@ -313,9 +328,7 @@ fs.promises.readdir(dir).then((files) => {
             fileWriter.write(`    <type-extension type-id="${typeId}">\n`);
 
 
-            const attributeIds = Object.keys(fatStructure[typeId]['custom-attribute-definitions']).filter((attributeId) => {
-                return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0;
-            });
+            const attributeIds = Object.keys(fatStructure[typeId]['custom-attribute-definitions']).filter(shouldIncludeCustomAttribute.bind(null, typeId));
 
             if (attributeIds.length) {
                 fileWriter.write(`        <custom-attribute-definitions>\n`);
@@ -330,18 +343,14 @@ fs.promises.readdir(dir).then((files) => {
                     // do not write empty group definitions
                     if (Object.keys(fatStructure[typeId]['group-definitions']).some((groupId) => {
                         return fatStructure[typeId]['group-definitions'][groupId].attribute.length &&
-                            fatStructure[typeId]['group-definitions'][groupId].attribute.some((attributeId) => {
-                                return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0;
-                            })
+                            fatStructure[typeId]['group-definitions'][groupId].attribute.some(shouldIncludeCustomAttribute.bind(null, typeId))
                     })) {
 
                         fileWriter.write(`        <group-definitions>\n`);
 
                         Object.keys(fatStructure[typeId]['group-definitions']).forEach((groupId) => {
 
-                            if (fatStructure[typeId]['group-definitions'][groupId].attribute.some((attributeId) => {
-                                return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0;
-                            })) {
+                            if (fatStructure[typeId]['group-definitions'][groupId].attribute.some(shouldIncludeCustomAttribute.bind(null, typeId))) {
                                 fileWriter.write(`            <attribute-group group-id="${groupId}">\n`);
 
                                 fatStructure[typeId]['group-definitions'][groupId]['display-name']?.forEach((nodeConf) => {
@@ -349,7 +358,7 @@ fs.promises.readdir(dir).then((files) => {
                                 })
 
                                 fatStructure[typeId]['group-definitions'][groupId].attribute.forEach((attributeId) => {
-                                    if (filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0) {
+                                    if (shouldIncludeCustomAttribute(typeId, attributeId)) {
                                         fileWriter.write(`                <attribute attribute-id="${attributeId}"/>\n`);
                                     }
                                 });
