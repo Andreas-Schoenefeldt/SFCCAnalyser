@@ -4,6 +4,8 @@ const async = require("async");
 
 const dir = './data/meta-xmls/';
 
+const systemIdent = 'system:';
+
 const fatStructure = {};
 
 // preperation
@@ -167,7 +169,7 @@ fs.promises.readdir(dir).then((files) => {
                   }
 
                   el.attribute?.forEach((attributeNode) => {
-                      const attributeName =  attributeNode.$['attribute-id'];
+                      const attributeName = (attributeNode.$['system'] ? systemIdent : '') +  attributeNode.$['attribute-id'];
                       if (fatStructure[currentType]['group-definitions'][groupId]['attribute'].indexOf(attributeName) < 0) {
                           fatStructure[currentType]['group-definitions'][groupId]['attribute'].push(attributeName)
                       }
@@ -245,6 +247,50 @@ fs.promises.readdir(dir).then((files) => {
             }
         };
 
+        const sortAndFilterLabels = (labelArray) => {
+            const langs = {
+
+            }
+
+            if (labelArray) {
+                labelArray.sort(langCompare).forEach((langItem) => {
+
+                    const lang = langItem.$['xml:lang'];
+                    const label = langItem.$text;
+
+                    if (lang === 'x-default') {
+                        langs[lang] = label;
+                        return true;
+                    } else {
+                        if (langs['x-default'] && label === langs['x-default']) {
+                            // filter out duplicated labels
+                            return false;
+                        } else if (lang.length === 2) {
+                            langs[lang] = label;
+                            return true;
+                        } else {
+                            const parts = lang.split('-');
+
+                            if (!langs[parts[0]]) {
+                                langs[parts[0]] = label;
+                                return false;
+                            } else if (langs[parts[0]] === label) {
+                                return false;
+                            }
+                        }
+                    }
+
+                    langs[lang] = label;
+                    return true;
+                });
+            }
+
+            labelArray = Object.keys(langs).map((lang) => {
+                return { '$': { 'xml:lang': lang }, '$text': langs[lang] };
+            });
+            return labelArray;
+        }
+
         const shouldIncludeCustomAttribute = (typeId, attributeId) => {
             if (config.shouldIncludeCustomAttribute) {
                 const customResult = config.shouldIncludeCustomAttribute(typeId, attributeId, fatStructure[typeId]['custom-attribute-definitions'][attributeId]);
@@ -255,6 +301,14 @@ fs.promises.readdir(dir).then((files) => {
             }
 
             return filterPrefs[typeId] && filterPrefs[typeId][attributeId] && filterPrefs[typeId][attributeId].count !== 0
+        }
+
+        const shouldIncludeGroupAttribute = (typeId, attributeId) => {
+            if (attributeId.indexOf(systemIdent) === 0) {
+                return true;
+            }
+
+            return shouldIncludeCustomAttribute(typeId, attributeId);
         }
 
         function writeXMLNode (tagName, attributes, indent = 0) {
@@ -272,14 +326,14 @@ fs.promises.readdir(dir).then((files) => {
                     })
 
                     if (attributes['display-name']) {
-                        attributes['display-name'].sort(langCompare);
+                        attributes['display-name'] = sortAndFilterLabels(attributes['display-name']);
                     }
 
                     break;
                 case 'value-definition':
                     // sort the display nodes
                     if (attributes.display) {
-                        attributes.display.sort(langCompare);
+                        attributes.display = sortAndFilterLabels(attributes.display);
                     }
                     break;
                 // prevent a few default tags fro beeing written
@@ -343,14 +397,14 @@ fs.promises.readdir(dir).then((files) => {
                     // do not write empty group definitions
                     if (Object.keys(fatStructure[typeId]['group-definitions']).some((groupId) => {
                         return fatStructure[typeId]['group-definitions'][groupId].attribute.length &&
-                            fatStructure[typeId]['group-definitions'][groupId].attribute.some(shouldIncludeCustomAttribute.bind(null, typeId))
+                            fatStructure[typeId]['group-definitions'][groupId].attribute.some(shouldIncludeGroupAttribute.bind(null, typeId))
                     })) {
 
                         fileWriter.write(`        <group-definitions>\n`);
 
                         Object.keys(fatStructure[typeId]['group-definitions']).forEach((groupId) => {
 
-                            if (fatStructure[typeId]['group-definitions'][groupId].attribute.some(shouldIncludeCustomAttribute.bind(null, typeId))) {
+                            if (fatStructure[typeId]['group-definitions'][groupId].attribute.some(shouldIncludeGroupAttribute.bind(null, typeId))) {
                                 fileWriter.write(`            <attribute-group group-id="${groupId}">\n`);
 
                                 fatStructure[typeId]['group-definitions'][groupId]['display-name']?.forEach((nodeConf) => {
@@ -358,8 +412,17 @@ fs.promises.readdir(dir).then((files) => {
                                 })
 
                                 fatStructure[typeId]['group-definitions'][groupId].attribute.forEach((attributeId) => {
-                                    if (shouldIncludeCustomAttribute(typeId, attributeId)) {
-                                        fileWriter.write(`                <attribute attribute-id="${attributeId}"/>\n`);
+                                    if (shouldIncludeGroupAttribute(typeId, attributeId)) {
+
+                                        let isSystem = false;
+                                        if (attributeId.indexOf(systemIdent) === 0) {
+                                            isSystem = true;
+                                            attributeId = attributeId.replace(systemIdent, '');
+                                        }
+
+
+
+                                        fileWriter.write(`                <attribute attribute-id="${attributeId}"${isSystem ? ' system="true"' : ''}/>\n`);
                                     }
                                 });
 
