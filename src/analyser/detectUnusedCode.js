@@ -3,6 +3,8 @@ const async = require("async");
 const {parsePipelineExecute, parseUrlUtils} = require("../parser/utils");
 const {parseIncludes} = require("../parser/includes");
 const {usage} = require("../util/codeUsage");
+const {extname} = require("path");
+const path = require("path");
 
 module.exports = function (cartridgesFolder) {
     // analyse pipeline usage
@@ -43,9 +45,23 @@ module.exports = function (cartridgesFolder) {
                 outerCallback(null); // it is not a directory, just ignore it silently
             }
         }, () => {
-            console.log('Preparing Results');
+            console.log('Preparing Results - Scripts without usage:');
 
-            console.log(usage);
+            let count = 0;
+
+            Object.keys(usage).forEach((file) => {
+
+                if (
+                    ['.js', '.ds', '.json'].indexOf(path.extname(file)) > -1 &&
+                    usage[file].count === 0 &&
+                    file.indexOf('cartridge/controllers') < 0 // controllers are the start point, they are not required themselves
+                ) {
+                    console.log(file);
+                    count++;
+                }
+            })
+
+            console.log(' All in all, it looks like ' + count + ' files can be removed.');
 
         });
 

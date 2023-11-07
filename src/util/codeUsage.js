@@ -111,6 +111,10 @@ module.exports.addPotentialFile = function (potentialFile, currentCartridge, cur
         const fileBase = parts[0];
         const source = currentCartridge + parts[1];
 
+        if (potentialFile[0] === '/') {
+            potentialFile = potentialFile.substring(1);
+        }
+
         if (potentialFile[0] === '~') {
             potentialFile = currentCartridge + potentialFile.substring(1);
             addFile(potentialFile, resolve(fileBase + potentialFile), type, source);
