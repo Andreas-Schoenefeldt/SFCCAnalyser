@@ -24,7 +24,10 @@ module.exports = function (parserFnc, cartridgeBase, cartridgeName, cb) {
             }
 
             async.each(files, function (file, callback) {
-                recurseThroughFolderStructure(file).then(callback);
+                recurseThroughFolderStructure(file).then(callback).catch((reason) => {
+                    console.log('Error Script', reason);
+                    process.exit(1);
+                });
             }, function () {
                 cb(null);
             });

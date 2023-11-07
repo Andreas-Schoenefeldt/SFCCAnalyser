@@ -14,12 +14,16 @@ module.exports = function (cartridgesFolder) {
             throw err;
         }
 
+        console.log(`Start analysis of ${cartridgesFolder}`);
+
         async.each(files, function (cartridgeName, outerCallback) {
             if (ignores.indexOf(cartridgeName) > -1) {
-                console.log('Ignored Cartridge ' + cartridgeName + " (via " + ignoresStore +")");
+                console.log('  > ! Ignored Cartridge ' + cartridgeName + " (via " + ignoresStore +")");
                 outerCallback(null);
             } else {
                 if (fs.lstatSync(cartridgesFolder + '/' + cartridgeName).isDirectory()) {
+
+                    console.log('  > process ' + cartridgeName);
 
                     const cartridgeBase = cartridgesFolder + '/' + cartridgeName + '/cartridge/';
 
@@ -27,20 +31,29 @@ module.exports = function (cartridgesFolder) {
                         require('../walker/controller').bind(null, parsePipelineExecute),
                         require('../walker/pipeline').bind(null, require('../parser/pipeline').parsePipelineRefferences),
                         require('../walker/script').bind(null, async function (file, cartridgeName, cartridgeBase) {
-                            await parsePipelineExecute(cartridgeBase + 'scripts/' + file, cartridgeName, file);
-                            await parseUrlUtils(cartridgeBase + 'scripts/' + file, cartridgeName, cartridgeBase + 'scripts/');
+                            await parsePipelineExecute(file, cartridgeName, file.replace(cartridgeBase, ''));
+                            await parseUrlUtils(file, cartridgeName, cartridgeBase + 'scripts/');
                         }),
                         require('../walker/template').bind(null, parseUrlUtils),
                     ], function (fnc, callback) {
-                        fnc(cartridgeBase, cartridgeName, callback);
+
+                        try {
+                            fnc(cartridgeBase, cartridgeName, callback);
+                        } catch (e) {
+                            console.log(`! Error during ${cartridgeName} analysis`);
+                            console.log(e);
+                        }
                     }, function () {
                         outerCallback(null); // the whole cartridge was processed
                     });
                 } else {
-                    outerCallback(null); // it is not an directory, just ignore it silently
+                    outerCallback(null); // it is not a directory, just ignore it silently
                 }
             }
         }, function () {
+
+            console.log('Preparing Results');
+
             // transform into csv
             const rows = [];
 
@@ -62,7 +75,7 @@ module.exports = function (cartridgesFolder) {
             }
 
             // @todo: take the name of the file from the project folder
-            csv.writeToPath('../../data/result/analyse.csv', rows, {headers: true});
+            csv.writeToPath(__dirname + '/../../data/result/analyse.csv', rows, {headers: true});
 
             // @todo: print the results mysql style?
             // console.log(pipes);

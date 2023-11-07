@@ -7,7 +7,9 @@ module.exports = function (parserFnc, cartridgeBase, cartridgeName, cb) {
     fs.readdir(cartridgeBase + 'controllers', (err, files) => {
         if (!err){
             async.each(files, function (file, callback) {
-                parserFnc(cartridgeBase + 'controllers/' + file, cartridgeName, file).then(callback);
+                parserFnc(cartridgeBase + 'controllers/' + file, cartridgeName, file).then(callback).catch((err) => {
+                    console.error('Err');
+                });
             },
             function () {
                 cb(null);

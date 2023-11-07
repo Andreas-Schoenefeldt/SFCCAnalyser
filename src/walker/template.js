@@ -16,7 +16,9 @@ module.exports = function (parserFnc, cartridgeBase, cartridgeName, cb) {
 
                 if (stats.isDirectory()) {
                     await async.each(await fs.promises.readdir(base + '/' + folderOrFile), function (file, callback) {
-                        recurseThroughFolderStructure(folderOrFile + '/' + file).then(callback);
+                        recurseThroughFolderStructure(folderOrFile + '/' + file).then(callback).catch((reason) => {
+                            console.error('Error template');
+                        });
                     })
                 } else {
                     if (acceptedExtensions.indexOf(path.extname(folderOrFile)) > -1) {

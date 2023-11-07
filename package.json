@@ -5,7 +5,7 @@
   "main": "analyse.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node analyse.js"
+    "start": "node --trace-warnings analyse.js"
   },
   "repository": {
     "type": "git",
