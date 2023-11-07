@@ -2,6 +2,7 @@ const fs = require("fs");
 const async = require("async");
 const {parsePipelineExecute, parseUrlUtils} = require("../parser/utils");
 const {parseIncludes} = require("../parser/includes");
+const {usage} = require("../util/codeUsage");
 
 module.exports = function (cartridgesFolder) {
     // analyse pipeline usage
@@ -43,6 +44,8 @@ module.exports = function (cartridgesFolder) {
             }
         }, () => {
             console.log('Preparing Results');
+
+            console.log(usage);
 
         });
 
