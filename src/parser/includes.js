@@ -21,6 +21,26 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
             addPotentialFile(m[2], cartridgeName, filePath, TYPE.SCRIPT);
         }
     }
+
+    const importScriptRegex = /^(?!\s*(\*|\/\/)).*importScript\(['"](.*?)['"]\)/gmi;
+
+    while ((m = importScriptRegex.exec(content)) !== null) {
+        // This is necessary to avoid infinite loops with zero-width matches
+        if (m.index === importScriptRegex.lastIndex) {
+            importScriptRegex.lastIndex++;
+        }
+
+        if (m.length > 2) {
+
+            console.log(m);
+            process.exit(108);
+
+
+            // addPotentialFile(m[2], cartridgeName, filePath, TYPE.SCRIPT);
+        }
+    }
+
+
 }
 
 async function parseIncludes(filePath, cartridgeName, cartridgeBase) {
