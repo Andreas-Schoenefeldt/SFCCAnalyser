@@ -111,6 +111,12 @@ module.exports.addPotentialFile = function (potentialFile, currentCartridge, cur
         const fileBase = parts[0];
         const source = currentCartridge + parts[1];
 
+        if (potentialFile.indexOf(':') > -1) {
+            const oldNotation = potentialFile.split(':');
+            // bc_integrationframework:workflow/libWorkflowLogToFile.ds to bc_integrationframework/cartridge/scripts/workflow/libWorkflowLogToFile.ds
+            potentialFile = oldNotation[0] + '/cartridge/scripts/' + oldNotation[1];
+        }
+
         if (potentialFile[0] === '/') {
             potentialFile = potentialFile.substring(1);
         }

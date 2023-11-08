@@ -1,5 +1,6 @@
 const fs = require("fs");
 const {addPotentialFile, TYPE, addFile} = require("../util/codeUsage");
+const path = require("path");
 
 async function parseScriptIncludes(filePath, cartridgeName, base) {
 
@@ -7,7 +8,7 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
     const content = buff.toString();
 
     // https://regex101.com/r/HAmed7/1 - ignore all commented lines
-    const requireRegex = /^(?!\s*(\*|\/\/)).*require\(['"](.*?)['"]\)/gmi;
+    const requireRegex = /^(?!\s*(\*|\/\/|\/\*)).*require\(['"](.*?)['"]\)/gmi;
 
     let m;
 
@@ -22,7 +23,7 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
         }
     }
 
-    const importScriptRegex = /^(?!\s*(\*|\/\/)).*importScript\(['"](.*?)['"]\)/gmi;
+    const importScriptRegex = /^(?!\s*(\*|\/\/|\/\*)).*importScript\(['"](.*?)['"]\)/gmi;
 
     while ((m = importScriptRegex.exec(content)) !== null) {
         // This is necessary to avoid infinite loops with zero-width matches
@@ -32,13 +33,20 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
 
         if (m.length > 2) {
 
-            console.log(m);
-            process.exit(108);
+            // things like this also work: importScript("utils/TransferClient.ds"); - this is te same cartridge, we need to catch this here already
+            let file = m[2];
 
+            if (file.indexOf(':') < 0) {
+                file = cartridgeName + '/cartridge/scripts/' + file;
+            }
 
-            // addPotentialFile(m[2], cartridgeName, filePath, TYPE.SCRIPT);
+            addPotentialFile(file, cartridgeName, filePath, TYPE.SCRIPT);
         }
     }
+
+
+    // next regex on pipelines: <pipelet-node pipelet-name="Script" pipelet-set-identifier="bc_api">
+    //   <config-property key="ScriptFile" value="productquality/CheckProductQuality.ds"/>
 
 
 }
