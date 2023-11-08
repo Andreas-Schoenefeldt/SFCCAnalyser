@@ -1,10 +1,12 @@
-const {resolve, extname, dirname} = require("path");
+const {resolve, extname, dirname, basename} = require("path");
 const fs = require("fs");
 const TYPE = {
     SCRIPT: 'script',
     CONTROLLER: 'controller',
     TEMPLATE: 'template'
 }
+
+const ALWAYS_INCLUDED_FILES = ['package.json', 'steptypes.json'];
 
 const usage = {}
 
@@ -20,6 +22,12 @@ function assureStructure(normalizedFileName) {
             count: 0,
             includedFrom: []
         }
+
+        // those cartridge files are always included by teh system
+        if (ALWAYS_INCLUDED_FILES.indexOf(basename(normalizedFileName)) > -1) {
+            usage[normalizedFileName].count++;
+        }
+
     }
 }
 

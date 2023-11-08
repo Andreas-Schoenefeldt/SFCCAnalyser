@@ -1,41 +1,48 @@
 const fs = require("fs");
 const path = require('path');
 const async = require("async");
-const acceptedExtensions = ['.js', '.ds']
+const acceptedExtensions = ['.js', '.ds', '.json']
 
-module.exports = function (parserFnc, cartridgeBase, cartridgeName, cb) {
+module.exports = async function (parserFnc, cartridgeBase, cartridgeName, cb) {
 
-    fs.readdir(cartridgeBase + 'scripts', (err, files) => {
-        if (!err){
+    const root = path.resolve(cartridgeBase + '..');
+    const jsonFiles = await fs.promises.readdir(root);
 
-            const recurseThroughFolderStructure = async function (folderOrFile) {
+    for (let i = 0; i < jsonFiles.length; i++) {
+        const filePath = root + '/' + jsonFiles[i]
+        const stats = fs.lstatSync(filePath);
 
-                const stats = fs.lstatSync(cartridgeBase + 'scripts/' + folderOrFile);
-
-                if (stats.isDirectory()) {
-                    await async.each(fs.readdirSync(cartridgeBase + 'scripts/' + folderOrFile), function (file, callback) {
-                        recurseThroughFolderStructure(folderOrFile + '/' + file).then(callback);
-                    })
-                } else {
-                    if (acceptedExtensions.indexOf(path.extname(folderOrFile)) > -1) {
-                        await parserFnc(cartridgeBase + 'scripts/' + folderOrFile, cartridgeName, cartridgeBase);
-                    }
-                }
-            }
-
-            async.each(files, function (file, callback) {
-                recurseThroughFolderStructure(file).then(callback).catch((reason) => {
-                    console.log('Error Script', reason);
-                    process.exit(1);
-                });
-            }, function () {
-                cb(null);
-            });
-
-
-        } else {
-            // the cartridge has no scripts folder, so we scip it silently
-            cb(null);
+        if (stats.isFile()) {
+            await parserFnc(filePath, cartridgeName, cartridgeBase);
         }
-    });
+    }
+
+    const recurseThroughFolderStructure = async function (folderOrFile) {
+
+        const stats = fs.lstatSync(cartridgeBase + 'scripts/' + folderOrFile);
+
+        if (stats.isDirectory()) {
+            await async.each(fs.readdirSync(cartridgeBase + 'scripts/' + folderOrFile), function (file, callback) {
+                recurseThroughFolderStructure(folderOrFile + '/' + file).then(callback);
+            })
+        } else {
+            if (acceptedExtensions.indexOf(path.extname(folderOrFile)) > -1) {
+                await parserFnc(cartridgeBase + 'scripts/' + folderOrFile, cartridgeName, cartridgeBase);
+            }
+        }
+    }
+
+    if (fs.existsSync(cartridgeBase + 'scripts')) {
+
+        const scriptFiles = await fs.promises.readdir(cartridgeBase + 'scripts');
+
+        await async.each(scriptFiles, function (file, callback) {
+            recurseThroughFolderStructure(file).then(callback).catch((reason) => {
+                console.log('Error Script', reason);
+                process.exit(1);
+            });
+        });
+    }
+
+    cb();
 }
