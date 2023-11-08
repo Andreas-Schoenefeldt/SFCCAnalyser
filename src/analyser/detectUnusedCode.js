@@ -1,10 +1,9 @@
 const fs = require("fs");
 const async = require("async");
-const {parsePipelineExecute, parseUrlUtils} = require("../parser/utils");
 const {parseIncludes} = require("../parser/includes");
 const {usage} = require("../util/codeUsage");
-const {extname} = require("path");
 const path = require("path");
+const inquirer = require("inquirer");
 
 module.exports = function (cartridgesFolder) {
     // analyse pipeline usage
@@ -48,6 +47,7 @@ module.exports = function (cartridgesFolder) {
             console.log('Preparing Results - Scripts without usage:');
 
             let count = 0;
+            const zeroUsageFiles = [];
 
             Object.keys(usage).forEach((file) => {
 
@@ -58,10 +58,71 @@ module.exports = function (cartridgesFolder) {
                 ) {
                     console.log(file);
                     count++;
+                    zeroUsageFiles.push(file);
                 }
-            })
+            });
 
-            console.log(' All in all, it looks like ' + count + ' files can be removed.');
+            if (zeroUsageFiles.length) {
+
+                console.log('  - All in all, it looks like the above ' + count + ' files are unused and can be removed.');
+
+                inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'delete',
+                        message: 'Would you like to delete the unused files?'
+                    }
+                ]).then((res) => {
+                    if (res.delete) {
+
+                        let removedFiles = 0;
+                        let removedDirectories = 0;
+
+                        const deleteEmptyDirectoriesUp = function (dir) {
+                            if (!fs.readdirSync(dir).length) {
+                                fs.rmdirSync(dir);
+                                removedDirectories++;
+                                console.log(' > removing now empty folder: ' + dir);
+
+                                deleteEmptyDirectoriesUp(path.dirname(dir));
+                            }
+                        }
+
+                        const deleteFileIfNotUsed = function (file) {
+
+                            if (usage[file].includedFrom.length === 0) {
+
+                                const absPath = path.resolve(cartridgesFolder + '/' + file);
+
+                                if (fs.existsSync(absPath)) {
+                                    fs.rmSync(absPath);
+                                    removedFiles++;
+
+                                    console.log(' > deleted: ' + file);
+
+                                    deleteEmptyDirectoriesUp(path.dirname(absPath));
+
+                                    usage[file].includes.forEach((include) => {
+                                        usage[include].includedFrom = usage[include].includedFrom.filter((includeFile) => {
+                                            return includeFile !== file;
+                                        });
+
+                                        deleteFileIfNotUsed(include);
+                                    });
+                                }
+                            }
+                        }
+
+                        zeroUsageFiles.forEach((file) => {
+                            deleteFileIfNotUsed(file);
+                        });
+
+                        console.log(`Done. Removed ${removedFiles} files and ${removedDirectories} directories - please test your project, before proceeding.`);
+                    }
+                })
+            } else {
+                console.log('Congratulations! You have no unused files in your project that we could detect.');
+            }
 
         });
 

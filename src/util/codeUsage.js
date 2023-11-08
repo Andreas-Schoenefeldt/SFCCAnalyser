@@ -8,6 +8,10 @@ const TYPE = {
 
 const ALWAYS_INCLUDED_FILES = ['package.json', 'steptypes.json'];
 
+/**
+ *
+ * @type {Record<string, {count: number, includedFrom: string[], includes: string[]}>}
+ */
 const usage = {}
 
 function getNormalizedFilename(file, cartridgeOfFile) {
@@ -20,7 +24,8 @@ function assureStructure(normalizedFileName) {
     if (!usage[normalizedFileName]) {
         usage[normalizedFileName] = {
             count: 0,
-            includedFrom: []
+            includedFrom: [],
+            includes: []
         }
 
         // those cartridge files are always included by teh system
@@ -44,7 +49,9 @@ function addFile(potentialFile, realName, type, source, ignoreNonExistence) {
                     potentialFile = 'modules/' + potentialFile;
                 }
 
-                if (!extname(realName)) {
+                const actualExtension = extname(realName);
+
+                if (!actualExtension || actualExtension === '.min') {
                     extension = '.js';
 
                     if (!fs.existsSync(realName + extension)) {
@@ -67,11 +74,16 @@ function addFile(potentialFile, realName, type, source, ignoreNonExistence) {
 
     if (fs.existsSync(realName)) {
 
+        assureStructure(source);
         assureStructure(potentialFile);
 
         usage[potentialFile].count++;
         if (usage[potentialFile].includedFrom.indexOf(source) < 0) {
             usage[potentialFile].includedFrom.push(source);
+        }
+
+        if (usage[source].includes.indexOf(potentialFile) < 0) {
+            usage[source].includes.push(potentialFile);
         }
 
     } else if (realName.indexOf('+') > -1) {
@@ -121,8 +133,14 @@ module.exports.addPotentialFile = function (potentialFile, currentCartridge, cur
 
         if (potentialFile.indexOf(':') > -1) {
             const oldNotation = potentialFile.split(':');
+
+            let filePart = oldNotation[1];
+            if (filePart[0] === '/') {
+                filePart = filePart.substring(1);
+            }
+
             // bc_integrationframework:workflow/libWorkflowLogToFile.ds to bc_integrationframework/cartridge/scripts/workflow/libWorkflowLogToFile.ds
-            potentialFile = oldNotation[0] + '/cartridge/scripts/' + oldNotation[1];
+            potentialFile = oldNotation[0] + '/cartridge/scripts/' + filePart;
         }
 
         if (potentialFile[0] === '/') {

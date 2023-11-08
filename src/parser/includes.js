@@ -4,6 +4,10 @@ const path = require("path");
 
 const ALLOWED_PACKAGE_JSON_KEYS = ['main', 'hooks', 'caches']
 
+const customConfigPath = path.resolve(__dirname + '/../../data/config.js');
+
+const config = fs.existsSync(customConfigPath) ? require(customConfigPath) : {};
+
 async function parseScriptIncludes(filePath, cartridgeName, base) {
 
     const buff = await fs.promises.readFile(filePath);
@@ -17,8 +21,14 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
 
         switch (baseName) {
             default:
-                // silent fail
-                console.log(' unhandled json file ', filePath);
+                if (config.customIncludeDetectionForUnhandledFiles) {
+                    await config.customIncludeDetectionForUnhandledFiles(filePath, cartridgeName, base);
+                } else {
+                    console.log('  - unhandled json file ', filePath);
+                }
+                break;
+            case 'caches.json':
+                // we know this file does not contain any includes
                 break;
             case 'package.json':
 
@@ -75,7 +85,7 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
                 let file = m[2];
 
                 if (file.indexOf(':') < 0) {
-                    file = cartridgeName + '/cartridge/scripts/' + file;
+                    file = cartridgeName + '/cartridge/scripts/' + (file[0] === '/' ? file.substring(1) : file);
                 }
 
                 addPotentialFile(file, cartridgeName, filePath, TYPE.SCRIPT);
@@ -83,23 +93,23 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
         }
 
         if (extension === '.xml') {
-
             // assumption that this happens only for script nodes
             const pipelineScriptRegex = /<config-property key="ScriptFile" value="(.*?)"\/>/gmi;
 
-            while ((m = importScriptRegex.exec(content)) !== null) {
+            while ((m = pipelineScriptRegex.exec(content)) !== null) {
                 // This is necessary to avoid infinite loops with zero-width matches
-                if (m.index === importScriptRegex.lastIndex) {
-                    importScriptRegex.lastIndex++;
+                if (m.index === pipelineScriptRegex.lastIndex) {
+                    pipelineScriptRegex.lastIndex++;
                 }
 
                 if (m.length > 1) {
 
-                    // things like this also work: importScript("utils/TransferClient.ds"); - this is te same cartridge, we need to catch this here already
+                    // things like this are the norm: '<config-property key="ScriptFile" value="productfeeds/ProductFeedManager.ds"/>
+                    // it will take the file from the cartridge path
                     let file = m[1];
 
                     if (file.indexOf(':') < 0) {
-                        file = cartridgeName + '/cartridge/scripts/' + file;
+                        file = '*/cartridge/scripts/' + (file[0] === '/' ? file.substring(1) : file);
                     }
 
                     addPotentialFile(file, cartridgeName, filePath, TYPE.SCRIPT);
