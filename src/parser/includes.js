@@ -35,6 +35,13 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
                 })
 
                 break;
+            case 'steptypes.json':
+                Object.keys(json['step-types']).forEach((key) => {
+                    json['step-types'][key].forEach((stepConfig) => {
+                        addPotentialFile(stepConfig.module, cartridgeName, filePath, TYPE.SCRIPT);
+                    })
+                })
+                break;
         }
     } else {
 
