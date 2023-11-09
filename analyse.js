@@ -15,6 +15,12 @@ inquirer.prompt([
         default: defaults.folder
     }
 ]).then(async (answers) => {
+
+    if (!answers.folder) {
+        console.log('Please enter your cartridges folder');
+        process.exit(108);
+    }
+
     // store defaults
     defaults.folder = answers.folder;
     fs.writeFile(defaultsStore, JSON.stringify(defaults), () => {

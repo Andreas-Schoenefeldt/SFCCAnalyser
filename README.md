@@ -1,20 +1,29 @@
 # SFCCAnalyser
-A node script, which allows to analyse pipeline and controller usage. Ideal to identify potentially unused code.
 
-## Usage
-
-Use as `npm start` and follow the script. First it will request the cartridges folder of the project to analyse.
-
-The result is written to `data/result/analyse.csv`.
+A node script, which allows to analyse pipeline, script and controller usage. Ideal to identify potentially unused code.
 
 ## Installation
 
 * checkout the code
 * run `npm i`
 
-## Exclude Pipelines from the analysis
+## Usage
+
+Use as `npm start` and follow the script. First it will request the cartridges folder of the project to analyse.
+
+The following analysis are available:
+
+* cartridge usage (Checks Pipeline and Controller Usage)
+    * The result is written to `data/result/analyse.csv`.
+* custom attribute usage (combine the custom objects before - see below)
+* detect unused code (analyses the import and require chains in order to identify and potentially delete unused scripts)
+
+### cartridge usage
+
+#### Exclude Pipelines from the analysis
 
 Create a `data/ignores.json` file and add the cartridge names to the list. Example:
+
 ```json
 [
   "bm_serviceframework",
@@ -26,6 +35,10 @@ Create a `data/ignores.json` file and add the cartridge names to the list. Examp
   "bc_library"
 ]
 ```
+
+### detect unused code
+
+This script takes controller and pipelines as base and sees, which scripts are actually imported from them.
 
 # Combine and analyse system objecttype extension XML Files
 

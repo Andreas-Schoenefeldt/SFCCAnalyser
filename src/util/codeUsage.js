@@ -41,6 +41,8 @@ function addFile(potentialFile, realName, type, source, ignoreNonExistence) {
 
     if (!fs.existsSync(realName)) {
 
+        const actualExtension = extname(realName);
+
         switch (type) {
             case TYPE.SCRIPT:
 
@@ -48,8 +50,6 @@ function addFile(potentialFile, realName, type, source, ignoreNonExistence) {
                     realName = realName.replace(potentialFile, 'modules/' + potentialFile);
                     potentialFile = 'modules/' + potentialFile;
                 }
-
-                const actualExtension = extname(realName);
 
                 if (!actualExtension || actualExtension === '.min') {
                     extension = '.js';
@@ -64,6 +64,11 @@ function addFile(potentialFile, realName, type, source, ignoreNonExistence) {
                     }
                 }
 
+                break;
+            case TYPE.TEMPLATE:
+                if (!actualExtension) {
+                    extension = '.isml';
+                }
                 break;
         }
 

@@ -8,12 +8,11 @@ const customConfigPath = path.resolve(__dirname + '/../../data/config.js');
 
 const config = fs.existsSync(customConfigPath) ? require(customConfigPath) : {};
 
-async function parseScriptIncludes(filePath, cartridgeName, base) {
+async function parseScriptIncludes(filePath, cartridgeName, base, fileInfo) {
 
-    const buff = await fs.promises.readFile(filePath);
-    const content = buff.toString();
-    const extension = path.extname(filePath).toLocaleLowerCase();
-    const baseName = path.basename(filePath);
+    const extension = fileInfo.extension;
+    const baseName = fileInfo.basename
+    const content = fileInfo.content;
 
     if (extension === '.json') {
 
@@ -56,7 +55,7 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
     } else {
 
         // https://regex101.com/r/HAmed7/1 - ignore all commented lines
-        const requireRegex = /^(?!\s*(\*|\/\/|\/\*)).*require\(['"](.*?)['"]\)/gmi;
+        const requireRegex = /^(?!\s*(\*|\/\/|\/\*)).*require\s*\(\s*['"](.*?)['"]\s*\)/gmi;
 
         let m;
 
@@ -71,7 +70,7 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
             }
         }
 
-        const importScriptRegex = /^(?!\s*(\*|\/\/|\/\*)).*importScript\(['"](.*?)['"]\)/gmi;
+        const importScriptRegex = /^(?!\s*(\*|\/\/|\/\*)).*importScript\s*\(\s*['"](.*?)['"]\s*\)/gmi;
 
         while ((m = importScriptRegex.exec(content)) !== null) {
             // This is necessary to avoid infinite loops with zero-width matches
@@ -94,7 +93,7 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
 
         if (extension === '.xml') {
             // assumption that this happens only for script nodes
-            const pipelineScriptRegex = /<config-property key="ScriptFile" value="(.*?)"\/>/gmi;
+            const pipelineScriptRegex = /<config-property\s*key="ScriptFile"\s*value="(.*?)"\s*\/>/gmi;
 
             while ((m = pipelineScriptRegex.exec(content)) !== null) {
                 // This is necessary to avoid infinite loops with zero-width matches
@@ -104,8 +103,6 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
 
                 if (m.length > 1) {
 
-                    // things like this are the norm: '<config-property key="ScriptFile" value="productfeeds/ProductFeedManager.ds"/>
-                    // it will take the file from the cartridge path
                     let file = m[1];
 
                     if (file.indexOf(':') < 0) {
@@ -119,11 +116,123 @@ async function parseScriptIncludes(filePath, cartridgeName, base) {
     }
 }
 
+async function parseTemplateIncludes(filePath, cartridgeName, base, fileInfo) {
+    const extension = fileInfo.extension;
+    const baseName = fileInfo.basename
+    const content = fileInfo.content;
+
+    let m;
+
+    if (['.js', '.ds'].indexOf(extension) > -1) {
+
+        // @todo - genericTemplateHook is a project specific thing - implememt a way to put this too the locale config.js
+        // find render stuff
+        const templateRenderRegex = /^(?!\s*(\*|\/\/|\/\*)).*(\.render|\.renderTemplate|new\s*Template)\s*\(\s*['"](.*?)['"]/gmi;
+
+        while ((m = templateRenderRegex.exec(content)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === templateRenderRegex.lastIndex) {
+                templateRenderRegex.lastIndex++;
+            }
+
+            if (m.length > 2) {
+
+                // @todo - here are also possible locale templates - ignored for now, as they are really bad practise
+
+                let file = m[3];
+                file = '*/cartridge/templates/default/' + (file[0] === '/' ? file.substring(1) : file);
+
+                addPotentialFile(file, cartridgeName, filePath, TYPE.TEMPLATE);
+            }
+        }
+
+        // @todo - render calls with variables can hold anything..
+
+    } else if (['.xml'].indexOf(extension) > -1) {
+        const pipelineTemplateRegex = /<template\s+[a-z="\s]*?dynamic="false" name="(.*)"\/>/gmi;
+
+
+        while ((m = pipelineTemplateRegex.exec(content)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === pipelineTemplateRegex.lastIndex) {
+                pipelineTemplateRegex.lastIndex++;
+            }
+
+            if (m.length > 1) {
+
+                // @todo - here are also possible locale templates - ignored for now, as they are really bad practise
+
+                // @todo - dynamic includes can hold anything...
+
+                let file = m[1];
+                file = '*/cartridge/templates/default/' + (file[0] === '/' ? file.substring(1) : file);
+
+                addPotentialFile(file, cartridgeName, filePath, TYPE.TEMPLATE);
+            }
+        }
+    } else if (['.isml'].indexOf(extension) > -1) {
+        const findIncludeRegex = /<isinclude\s+[a-z="\s]*?template\s*=\s*"\s*(\S*)\s*"[a-z="\s]*?\/>/gmi;
+
+        while ((m = findIncludeRegex.exec(content)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === findIncludeRegex.lastIndex) {
+                findIncludeRegex.lastIndex++;
+            }
+
+            if (m.length > 1) {
+
+                // @todo - here are also possible locale templates - ignored for now, as they are really bad practise
+
+                // @todo - dynamic includes can hold anything...
+
+                let file = m[1];
+                file = '*/cartridge/templates/default/' + (file[0] === '/' ? file.substring(1) : file);
+
+                addPotentialFile(file, cartridgeName, filePath, TYPE.TEMPLATE);
+            }
+        }
+
+        const moduleRegex = /<ismodule\s+[a-z="\s]*?template\s*=\s*"\s*(\S*)\s*"[a-z="\s]*?\/>/gmi;
+
+        while ((m = moduleRegex.exec(content)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === moduleRegex.lastIndex) {
+                moduleRegex.lastIndex++;
+            }
+
+            if (m.length > 1) {
+
+                // @todo - here are also possible locale templates - ignored for now, as they are really bad practise
+
+                // @todo - dynamic includes can hold anything...
+
+                let file = m[1];
+                file = '*/cartridge/templates/default/' + (file[0] === '/' ? file.substring(1) : file);
+
+                addPotentialFile(file, cartridgeName, filePath, TYPE.TEMPLATE);
+            }
+        }
+
+    }
+
+
+}
+
 async function parseIncludes(filePath, cartridgeName, cartridgeBase) {
+
+    const buff = await fs.promises.readFile(filePath);
+
+    const fileInfo = {
+        content: buff.toString(),
+        extension: path.extname(filePath).toLocaleLowerCase(),
+        basename: path.basename(filePath)
+    }
 
     addFile(filePath, cartridgeName);
 
-    await parseScriptIncludes(filePath, cartridgeName, cartridgeBase);
+    await parseScriptIncludes(filePath, cartridgeName, cartridgeBase, fileInfo);
+
+    await parseTemplateIncludes(filePath, cartridgeName, cartridgeBase, fileInfo);
 }
 
 
